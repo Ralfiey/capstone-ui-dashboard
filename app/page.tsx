@@ -1,7 +1,12 @@
 "use client"
 
 import { defaultSystemTelemetry } from "@/lib/default-system"
-import type { ChannelState, SystemTelemetry } from "@/lib/types"
+import type {
+  ChannelState,
+  CommandState,
+  SessionState,
+  SystemTelemetry,
+} from "@/lib/types"
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,7 +35,11 @@ const DEFAULT_IP = "192.168.0.204"
 function mapChannelStateToLegacyStatus(
   channel: ChannelState
 ): "active" | "inactive" | "fault" {
-  if (channel.commandedState === "fault" || channel.actualState === "fault" || channel.fault) {
+  if (
+    channel.commandedState === "fault" ||
+    channel.actualState === "fault" ||
+    channel.fault
+  ) {
     return "fault"
   }
 
@@ -48,19 +57,28 @@ function getActiveChannelCount(channels: ChannelState[]) {
 }
 
 export default function HomePage() {
-  const [esp32Ip, setEsp32Ip] = useState(DEFAULT_IP)
-  const [savedIp, setSavedIp] = useState(DEFAULT_IP)
+  const [esp32Ip, setEsp32Ip] = useState<string>(DEFAULT_IP)
+  const [savedIp, setSavedIp] = useState<string>(DEFAULT_IP)
   const [status, setStatus] = useState<ConnectionStatus>("Offline")
-const [lastUpdate, setLastUpdate] = useState<string>("Never")
+  const [lastUpdate, setLastUpdate] = useState<string>("Never")
 
-const [telemetry, setTelemetry] = useState<SystemTelemetry>(defaultSystemTelemetry)
-const [channels, setChannels] = useState<ChannelState[]>(defaultSystemTelemetry.pd.channels)
-const [voltageHistory, setVoltageHistory] = useState<VoltageHistoryPoint[]>([])
-const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
-  defaultSystemTelemetry.eventLog
-)
+  const [telemetry, setTelemetry] =
+    useState<SystemTelemetry>(defaultSystemTelemetry)
+  const [channels, setChannels] =
+    useState<ChannelState[]>(defaultSystemTelemetry.pd.channels)
+  const [voltageHistory, setVoltageHistory] =
+    useState<VoltageHistoryPoint[]>([])
+  const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
+    defaultSystemTelemetry.eventLog
+  )
 
-  function addLog(source: string, target: string, action: string, result: string, notes?: string) {
+  function addLog(
+    source: string,
+    target: string,
+    action: string,
+    result: string,
+    notes?: string
+  ) {
     setEventLog((prev) => [
       {
         id: `evt-${Date.now()}`,
@@ -97,7 +115,7 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
       const now = new Date().toLocaleTimeString()
 
       setTelemetry((prev) => {
-        const updatedChannels = prev.pd.channels.map((channel) => {
+        const updatedChannels: ChannelState[] = prev.pd.channels.map((channel) => {
           const channelKey = `channel${channel.number}`
           const fallbackRelayKey = `relay${channel.number}`
 
@@ -105,15 +123,30 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
             json[channelKey] ?? json[fallbackRelayKey] ?? (channel.actualState === "on")
           )
 
+          const actualState: CommandState = reportedState ? "on" : "off"
+
+          const channelFault =
+            typeof json[`channel${channel.number}Fault`] === "string"
+              ? json[`channel${channel.number}Fault`]
+              : channel.fault
+
           return {
             ...channel,
-            actualState: reportedState ? "on" : "off",
-            fault: json[`channel${channel.number}Fault`] ?? channel.fault,
+            actualState,
+            fault: channelFault,
             lastResponse: now,
           }
         })
 
         setChannels(updatedChannels)
+
+        const nextSecurityState: SessionState =
+          json.securityState === "alarm" ||
+          json.securityState === "armed" ||
+          json.securityState === "locked" ||
+          json.securityState === "idle"
+            ? (json.securityState as SessionState)
+            : prev.ch.securityState
 
         return {
           ...prev,
@@ -123,13 +156,7 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
             online: true,
             signalStrength: Number(json.signalStrength ?? prev.ch.signalStrength ?? 0),
             cameraOnline: Boolean(json.cameraOnline ?? prev.ch.cameraOnline),
-            securityState:
-              json.securityState === "alarm" ||
-              json.securityState === "armed" ||
-              json.securityState === "locked" ||
-              json.securityState === "idle"
-                ? json.securityState
-                : prev.ch.securityState,
+            securityState: nextSecurityState,
             lastHeartbeat: now,
           },
           pd: {
@@ -228,6 +255,7 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
     }
 
     const action = state ? "on" : "off"
+    const now = new Date().toLocaleTimeString()
 
     try {
       const res = await fetch(`http://${savedIp}/channel/${channelNumber}/${action}`, {
@@ -242,12 +270,14 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
         prev.map((channel) => {
           if (channel.number !== channelNumber) return channel
 
+          const nextState: CommandState = state ? "on" : "off"
+
           return {
             ...channel,
-            commandedState: state ? "on" : "off",
-            actualState: state ? "on" : "off",
-            lastCommand: `${action.toUpperCase()} @ ${new Date().toLocaleTimeString()}`,
-            lastResponse: new Date().toLocaleTimeString(),
+            commandedState: nextState,
+            actualState: nextState,
+            lastCommand: `${action.toUpperCase()} @ ${now}`,
+            lastResponse: now,
           }
         })
       )
@@ -262,6 +292,8 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
   }
 
   async function allOutputsOff() {
+    const now = new Date().toLocaleTimeString()
+
     const activeChannels = channels.filter(
       (channel) => channel.commandedState === "on" || channel.actualState === "on"
     )
@@ -281,8 +313,8 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
         ...channel,
         commandedState: "off",
         actualState: "off",
-        lastCommand: `OFF @ ${new Date().toLocaleTimeString()}`,
-        lastResponse: new Date().toLocaleTimeString(),
+        lastCommand: `OFF @ ${now}`,
+        lastResponse: now,
       }))
     )
 
@@ -380,7 +412,8 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
             <div className="flex-1 space-y-2">
               <div className="text-sm font-medium">CH Endpoint</div>
               <p className="text-sm text-muted-foreground">
-                Enter the current IP address used by the AP to reach the communication hub.
+                Enter the current IP address used by the AP to reach the communication
+                hub.
               </p>
               <Input
                 value={esp32Ip}
@@ -515,11 +548,7 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
                             {channel.label}
                           </div>
                         </div>
-                        <Badge
-                          variant={
-                            isFault ? "destructive" : isActive ? "default" : "secondary"
-                          }
-                        >
+                        <Badge variant={isActive ? "default" : "secondary"}>
                           {isFault ? "Fault" : isActive ? "Active" : "Off"}
                         </Badge>
                       </div>
@@ -607,8 +636,8 @@ const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
                 </div>
               </div>
 
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-64 w-full min-w-0">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={voltageHistory}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="time" />
