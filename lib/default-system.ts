@@ -8,7 +8,7 @@ export const defaultSystemTelemetry: SystemTelemetry = {
     sessionState: "idle",
     controlLocked: true,
     operatorName: "Operator",
-    lastHeartbeat: new Date().toLocaleTimeString(),
+    lastHeartbeat: "Never",
   },
   ch: {
     id: "CH-01",
@@ -18,7 +18,7 @@ export const defaultSystemTelemetry: SystemTelemetry = {
     signalStrength: 82,
     cameraOnline: false,
     securityState: "idle",
-    lastHeartbeat: new Date().toLocaleTimeString(),
+    lastHeartbeat: "Never",
     bridgeProtocol: "ESP-NOW",
   },
   pd: {
@@ -26,7 +26,7 @@ export const defaultSystemTelemetry: SystemTelemetry = {
     label: "Panel Device",
     online: true,
     protocol: "ESP-NOW",
-    lastHeartbeat: new Date().toLocaleTimeString(),
+    lastHeartbeat: "Never",
     fault: null,
     channelCount: 6,
     channels: [
@@ -142,7 +142,7 @@ export const defaultSystemTelemetry: SystemTelemetry = {
   eventLog: [
     {
       id: "evt-001",
-      time: new Date().toLocaleTimeString(),
+      time: "Not yet available",
       source: "AP",
       target: "System",
       action: "Dashboard initialized",
