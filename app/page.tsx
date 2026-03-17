@@ -1,5 +1,7 @@
 "use client"
 
+import { defaultSystemTelemetry } from "@/lib/default-system"
+import type { ChannelState, SystemTelemetry } from "@/lib/types"
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,61 +20,32 @@ import {
 
 type ConnectionStatus = "Connected" | "Offline" | "Connecting"
 
-type ChannelPhase = "A" | "B" | "C"
-
-type Channel = {
-  id: string
-  number: number
-  label: string
-  phase: ChannelPhase
-  gpio: number
-  active: boolean
-  armed: boolean
-  fault: string | null
-  lastCommand: string
-}
-
-type PanelDevice = {
-  id: string
-  label: string
-  online: boolean
-  protocol: "ESP-NOW" | "LoRa" | "Wi-Fi"
-  lastHeartbeat: string
-  fault: string | null
-  channels: Channel[]
-}
-
-type HubStatus = {
-  id: string
-  online: boolean
-  signalStrength: number
-  cameraOnline: boolean
-  securityState: "Locked" | "Unlocked" | "Fault"
-  lastHeartbeat: string
-}
-
-type Telemetry = {
-  voltage: number
-  current: number
-  power: number
-  hub: HubStatus
-  pd: PanelDevice
-}
-
 type VoltageHistoryPoint = {
   time: string
   voltage: number
 }
 
-type EventLogEntry = {
-  time: string
-  source: string
-  target: string
-  action: string
-  result: string
+const DEFAULT_IP = "192.168.0.204"
+
+function mapChannelStateToLegacyStatus(
+  channel: ChannelState
+): "active" | "inactive" | "fault" {
+  if (channel.commandedState === "fault" || channel.actualState === "fault" || channel.fault) {
+    return "fault"
+  }
+
+  if (channel.commandedState === "on" || channel.actualState === "on") {
+    return "active"
+  }
+
+  return "inactive"
 }
 
-const DEFAULT_IP = "192.168.0.204"
+function getActiveChannelCount(channels: ChannelState[]) {
+  return channels.filter(
+    (channel) => channel.commandedState === "on" || channel.actualState === "on"
+  ).length
+}
 
 export default function HomePage() {
   const [esp32Ip, setEsp32Ip] = useState(DEFAULT_IP)
@@ -80,140 +53,21 @@ export default function HomePage() {
   const [status, setStatus] = useState<ConnectionStatus>("Offline")
   const [lastUpdate, setLastUpdate] = useState("Never")
 
-  const [data, setData] = useState<Telemetry>({
-    voltage: 0,
-    current: 0,
-    power: 0,
-    hub: {
-      id: "CH-01",
-      online: false,
-      signalStrength: 0,
-      cameraOnline: false,
-      securityState: "Locked",
-      lastHeartbeat: "Never",
-    },
-    pd: {
-      id: "PD-01",
-      label: "Main Panel Device",
-      online: false,
-      protocol: "Wi-Fi",
-      lastHeartbeat: "Never",
-      fault: null,
-      channels: [
-        {
-          id: "ch1",
-          number: 1,
-          label: "Phase A – Test Output 1",
-          phase: "A",
-          gpio: 4,
-          active: false,
-          armed: false,
-          fault: null,
-          lastCommand: "None",
-        },
-        {
-          id: "ch2",
-          number: 2,
-          label: "Phase A – Test Output 2",
-          phase: "A",
-          gpio: 5,
-          active: false,
-          armed: false,
-          fault: null,
-          lastCommand: "None",
-        },
-        {
-          id: "ch3",
-          number: 3,
-          label: "Phase A – Test Output 3",
-          phase: "A",
-          gpio: 12,
-          active: false,
-          armed: false,
-          fault: null,
-          lastCommand: "None",
-        },
-        {
-          id: "ch4",
-          number: 4,
-          label: "Phase B – Test Output 1",
-          phase: "B",
-          gpio: 13,
-          active: false,
-          armed: false,
-          fault: null,
-          lastCommand: "None",
-        },
-        {
-          id: "ch5",
-          number: 5,
-          label: "Phase B – Test Output 2",
-          phase: "B",
-          gpio: 14,
-          active: false,
-          armed: false,
-          fault: null,
-          lastCommand: "None",
-        },
-        {
-          id: "ch6",
-          number: 6,
-          label: "Phase B – Test Output 3",
-          phase: "B",
-          gpio: 15,
-          active: false,
-          armed: false,
-          fault: null,
-          lastCommand: "None",
-        },
-        {
-          id: "ch7",
-          number: 7,
-          label: "Phase C – Test Output 1",
-          phase: "C",
-          gpio: 16,
-          active: false,
-          armed: false,
-          fault: null,
-          lastCommand: "None",
-        },
-        {
-          id: "ch8",
-          number: 8,
-          label: "Phase C – Test Output 2",
-          phase: "C",
-          gpio: 17,
-          active: false,
-          armed: false,
-          fault: null,
-          lastCommand: "None",
-        },
-        {
-          id: "ch9",
-          number: 9,
-          label: "Phase C – Test Output 3",
-          phase: "C",
-          gpio: 18,
-          active: false,
-          armed: false,
-          fault: null,
-          lastCommand: "None",
-        },
-      ],
-    },
-  })
-
+  const [telemetry, setTelemetry] = useState<SystemTelemetry>(defaultSystemTelemetry)
+  const [channels, setChannels] = useState<ChannelState[]>(defaultSystemTelemetry.pd.channels)
   const [voltageHistory, setVoltageHistory] = useState<VoltageHistoryPoint[]>([])
-  const [eventLog, setEventLog] = useState<EventLogEntry[]>([])
+  const [eventLog, setEventLog] = useState(defaultSystemTelemetry.eventLog)
 
-  function addLog(source: string, target: string, action: string, result: string) {
+  function addLog(source: string, target: string, action: string, result: string, notes?: string) {
     setEventLog((prev) => [
       {
+        id: `evt-${Date.now()}`,
         time: new Date().toLocaleTimeString(),
         source,
         target,
         action,
         result,
+        notes,
       },
       ...prev.slice(0, 24),
     ])
@@ -222,7 +76,7 @@ export default function HomePage() {
   function saveDeviceIp() {
     localStorage.setItem("esp32_ip", esp32Ip)
     setSavedIp(esp32Ip)
-    addLog("AP", "CH Address", "Save IP", `Saved ${esp32Ip}`)
+    addLog("AP", "CH Endpoint", "Save IP", `Saved ${esp32Ip}`)
   }
 
   async function fetchTelemetry() {
@@ -238,41 +92,98 @@ export default function HomePage() {
       }
 
       const json = await res.json()
+      const now = new Date().toLocaleTimeString()
 
-      setData((prev) => {
+      setTelemetry((prev) => {
         const updatedChannels = prev.pd.channels.map((channel) => {
           const channelKey = `channel${channel.number}`
           const fallbackRelayKey = `relay${channel.number}`
 
+          const reportedState = Boolean(
+            json[channelKey] ?? json[fallbackRelayKey] ?? (channel.actualState === "on")
+          )
+
           return {
             ...channel,
-            active: Boolean(json[channelKey] ?? json[fallbackRelayKey] ?? channel.active),
+            actualState: reportedState ? "on" : "off",
+            fault: json[`channel${channel.number}Fault`] ?? channel.fault,
+            lastResponse: now,
           }
         })
 
+        setChannels(updatedChannels)
+
         return {
-          voltage: Number(json.voltage ?? 0),
-          current: Number(json.current ?? 0),
-          power: Number(json.power ?? 0),
-          hub: {
-            ...prev.hub,
+          ...prev,
+          ch: {
+            ...prev.ch,
+            endpoint: savedIp,
             online: true,
-            signalStrength: Number(json.signalStrength ?? prev.hub.signalStrength ?? 0),
-            cameraOnline: Boolean(json.cameraOnline ?? prev.hub.cameraOnline),
+            signalStrength: Number(json.signalStrength ?? prev.ch.signalStrength ?? 0),
+            cameraOnline: Boolean(json.cameraOnline ?? prev.ch.cameraOnline),
             securityState:
-              json.securityState === "Unlocked" ||
-              json.securityState === "Fault" ||
-              json.securityState === "Locked"
+              json.securityState === "alarm" ||
+              json.securityState === "armed" ||
+              json.securityState === "locked" ||
+              json.securityState === "idle"
                 ? json.securityState
-                : prev.hub.securityState,
-            lastHeartbeat: new Date().toLocaleTimeString(),
+                : prev.ch.securityState,
+            lastHeartbeat: now,
           },
           pd: {
             ...prev.pd,
             online: true,
-            lastHeartbeat: new Date().toLocaleTimeString(),
+            protocol:
+              json.pdProtocol === "ESP-NOW" ||
+              json.pdProtocol === "LoRa" ||
+              json.pdProtocol === "Wi-Fi Bridge" ||
+              json.pdProtocol === "Unknown"
+                ? json.pdProtocol
+                : prev.pd.protocol,
+            lastHeartbeat: now,
             fault: json.pdFault ?? null,
             channels: updatedChannels,
+            channelCount: updatedChannels.length,
+          },
+          measurements: {
+            ...prev.measurements,
+            voltage:
+              json.voltage === undefined || json.voltage === null
+                ? prev.measurements.voltage
+                : Number(json.voltage),
+            current:
+              json.current === undefined || json.current === null
+                ? prev.measurements.current
+                : Number(json.current),
+            power:
+              json.power === undefined || json.power === null
+                ? prev.measurements.power
+                : Number(json.power),
+            continuityStatus: json.continuityStatus ?? prev.measurements.continuityStatus,
+            phaseDetected: json.phaseDetected ?? prev.measurements.phaseDetected,
+            neutralGroundStatus:
+              json.neutralGroundStatus ?? prev.measurements.neutralGroundStatus,
+            freshness: `Updated ${now}`,
+          },
+          camera: {
+            ...prev.camera,
+            online: Boolean(json.cameraOnline ?? prev.camera.online),
+            latestImageUrl: json.latestImageUrl ?? prev.camera.latestImageUrl,
+            lastCaptureTime: json.lastCaptureTime ?? prev.camera.lastCaptureTime,
+            triggerSource: json.triggerSource ?? prev.camera.triggerSource,
+          },
+          security: {
+            ...prev.security,
+            alarmActive: Boolean(json.alarmActive ?? prev.security.alarmActive),
+            intrusionDetected: Boolean(
+              json.intrusionDetected ?? prev.security.intrusionDetected
+            ),
+            auditTrailEnabled: Boolean(
+              json.auditTrailEnabled ?? prev.security.auditTrailEnabled
+            ),
+            remoteLockout: Boolean(json.remoteLockout ?? prev.security.remoteLockout),
+            killSignalReady: Boolean(json.killSignalReady ?? prev.security.killSignalReady),
+            lastAlarmTime: json.lastAlarmTime ?? prev.security.lastAlarmTime,
           },
         }
       })
@@ -280,21 +191,22 @@ export default function HomePage() {
       setVoltageHistory((prev) => [
         ...prev.slice(-19),
         {
-          time: new Date().toLocaleTimeString(),
+          time: now,
           voltage: Number(json.voltage ?? 0),
         },
       ])
 
       setStatus("Connected")
-      setLastUpdate(new Date().toLocaleTimeString())
+      setLastUpdate(now)
     } catch (error) {
       console.log("ESP32 offline", error)
       setStatus("Offline")
 
-      setData((prev) => ({
+      setTelemetry((prev) => ({
         ...prev,
-        hub: {
-          ...prev.hub,
+        ch: {
+          ...prev.ch,
+          endpoint: savedIp,
           online: false,
         },
         pd: {
@@ -324,21 +236,19 @@ export default function HomePage() {
         throw new Error(`Channel ${channelNumber} ${action} failed`)
       }
 
-      setData((prev) => ({
-        ...prev,
-        pd: {
-          ...prev.pd,
-          channels: prev.pd.channels.map((channel) =>
-            channel.number === channelNumber
-              ? {
-                  ...channel,
-                  active: state,
-                  lastCommand: `${action.toUpperCase()} @ ${new Date().toLocaleTimeString()}`,
-                }
-              : channel
-          ),
-        },
-      }))
+      setChannels((prev) =>
+        prev.map((channel) => {
+          if (channel.number !== channelNumber) return channel
+
+          return {
+            ...channel,
+            commandedState: state ? "on" : "off",
+            actualState: state ? "on" : "off",
+            lastCommand: `${action.toUpperCase()} @ ${new Date().toLocaleTimeString()}`,
+            lastResponse: new Date().toLocaleTimeString(),
+          }
+        })
+      )
 
       addLog("AP", `PD Channel ${channelNumber}`, `Set ${action}`, "Success")
       fetchTelemetry()
@@ -350,7 +260,9 @@ export default function HomePage() {
   }
 
   async function allOutputsOff() {
-    const activeChannels = data.pd.channels.filter((channel) => channel.active)
+    const activeChannels = channels.filter(
+      (channel) => channel.commandedState === "on" || channel.actualState === "on"
+    )
 
     for (const channel of activeChannels) {
       try {
@@ -362,17 +274,15 @@ export default function HomePage() {
       }
     }
 
-    setData((prev) => ({
-      ...prev,
-      pd: {
-        ...prev.pd,
-        channels: prev.pd.channels.map((channel) => ({
-          ...channel,
-          active: false,
-          lastCommand: `OFF @ ${new Date().toLocaleTimeString()}`,
-        })),
-      },
-    }))
+    setChannels((prev) =>
+      prev.map((channel) => ({
+        ...channel,
+        commandedState: "off",
+        actualState: "off",
+        lastCommand: `OFF @ ${new Date().toLocaleTimeString()}`,
+        lastResponse: new Date().toLocaleTimeString(),
+      }))
+    )
 
     addLog("AP", "All Channels", "Emergency Off", "Completed")
     fetchTelemetry()
@@ -387,12 +297,28 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
+    setTelemetry((prev) => ({
+      ...prev,
+      eventLog,
+      ch: {
+        ...prev.ch,
+        endpoint: savedIp,
+      },
+      pd: {
+        ...prev.pd,
+        channels,
+        channelCount: channels.length,
+      },
+    }))
+  }, [channels, eventLog, savedIp])
+
+  useEffect(() => {
     fetchTelemetry()
     const interval = setInterval(fetchTelemetry, 2000)
     return () => clearInterval(interval)
   }, [savedIp])
 
-  const activeChannelCount = data.pd.channels.filter((channel) => channel.active).length
+  const activeChannelCount = getActiveChannelCount(channels)
 
   return (
     <main className="min-h-screen bg-muted/30 p-6">
@@ -418,7 +344,7 @@ export default function HomePage() {
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">CH Status</div>
               <div className="mt-2 text-lg font-medium">
-                {data.hub.online ? "Online" : "Offline"}
+                {telemetry.ch.online ? "Online" : "Offline"}
               </div>
             </CardContent>
           </Card>
@@ -427,7 +353,7 @@ export default function HomePage() {
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">PD Status</div>
               <div className="mt-2 text-lg font-medium">
-                {data.pd.online ? "Online" : "Offline"}
+                {telemetry.pd.online ? "Online" : "Offline"}
               </div>
             </CardContent>
           </Card>
@@ -450,17 +376,18 @@ export default function HomePage() {
         <Card>
           <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-end">
             <div className="flex-1 space-y-2">
-              <div className="text-sm font-medium">Communication Hub Address</div>
+              <div className="text-sm font-medium">CH Endpoint</div>
               <p className="text-sm text-muted-foreground">
-                Enter the current IP address used by the AP to reach the hub or prototype
-                ESP32.
+                Enter the current IP address used by the AP to reach the communication hub.
               </p>
               <Input
                 value={esp32Ip}
                 onChange={(e) => setEsp32Ip(e.target.value)}
                 placeholder="192.168.0.204"
               />
-              <p className="text-sm text-muted-foreground">Active device: {savedIp}</p>
+              <p className="text-sm text-muted-foreground">
+                Connected CH: {telemetry.ch.endpoint}
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -488,31 +415,31 @@ export default function HomePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <div className="text-sm text-muted-foreground">Hub ID</div>
-                  <div className="font-medium">{data.hub.id}</div>
+                  <div className="font-medium">{telemetry.ch.id}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Status</div>
                   <div className="font-medium">
-                    {data.hub.online ? "Online" : "Offline"}
+                    {telemetry.ch.online ? "Online" : "Offline"}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Signal Strength</div>
-                  <div className="font-medium">{data.hub.signalStrength}%</div>
+                  <div className="font-medium">{telemetry.ch.signalStrength}%</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Camera</div>
                   <div className="font-medium">
-                    {data.hub.cameraOnline ? "Online" : "Offline"}
+                    {telemetry.camera.online ? "Online" : "Offline"}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Security</div>
-                  <div className="font-medium">{data.hub.securityState}</div>
+                  <div className="font-medium">{telemetry.ch.securityState}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Heartbeat</div>
-                  <div className="font-medium">{data.hub.lastHeartbeat}</div>
+                  <div className="font-medium">{telemetry.ch.lastHeartbeat}</div>
                 </div>
               </div>
             </CardContent>
@@ -530,29 +457,29 @@ export default function HomePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <div className="text-sm text-muted-foreground">PD ID</div>
-                  <div className="font-medium">{data.pd.id}</div>
+                  <div className="font-medium">{telemetry.pd.id}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Label</div>
-                  <div className="font-medium">{data.pd.label}</div>
+                  <div className="font-medium">{telemetry.pd.label}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Status</div>
                   <div className="font-medium">
-                    {data.pd.online ? "Online" : "Offline"}
+                    {telemetry.pd.online ? "Online" : "Offline"}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Protocol</div>
-                  <div className="font-medium">{data.pd.protocol}</div>
+                  <div className="font-medium">{telemetry.pd.protocol}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Heartbeat</div>
-                  <div className="font-medium">{data.pd.lastHeartbeat}</div>
+                  <div className="font-medium">{telemetry.pd.lastHeartbeat}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Fault</div>
-                  <div className="font-medium">{data.pd.fault ?? "None"}</div>
+                  <div className="font-medium">{telemetry.pd.fault ?? "None"}</div>
                 </div>
               </div>
             </CardContent>
@@ -569,61 +496,80 @@ export default function HomePage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {data.pd.channels.map((channel) => (
-                <Card key={channel.id} className="border">
-                  <CardContent className="space-y-4 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-base font-semibold">
-                          Channel {channel.number}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {channel.label}
-                        </div>
-                      </div>
-                      <Badge variant={channel.active ? "default" : "secondary"}>
-                        {channel.active ? "Active" : "Off"}
-                      </Badge>
-                    </div>
+              {channels.map((channel) => {
+                const legacyStatus = mapChannelStateToLegacyStatus(channel)
+                const isActive = legacyStatus === "active"
+                const isFault = legacyStatus === "fault"
 
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <div className="text-muted-foreground">Phase</div>
-                        <div className="font-medium">{channel.phase}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">GPIO</div>
-                        <div className="font-medium">{channel.gpio}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Fault</div>
-                        <div className="font-medium">{channel.fault ?? "None"}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Last Command</div>
-                        <div className="font-medium">{channel.lastCommand}</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border p-3">
-                      <div>
-                        <div className="text-sm font-medium">Output Control</div>
-                        <div className="text-xs text-muted-foreground">
-                          Send command to panel device
+                return (
+                  <Card key={channel.number} className="border">
+                    <CardContent className="space-y-4 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-base font-semibold">
+                            Channel {channel.number}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {channel.label}
+                          </div>
                         </div>
+                        <Badge
+                          variant={
+                            isFault ? "destructive" : isActive ? "default" : "secondary"
+                          }
+                        >
+                          {isFault ? "Fault" : isActive ? "Active" : "Off"}
+                        </Badge>
                       </div>
 
-                      <Switch
-                        checked={channel.active}
-                        onCheckedChange={(value) =>
-                          toggleChannel(channel.number, value)
-                        }
-                        disabled={status === "Offline"}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="text-muted-foreground">Phase</div>
+                          <div className="font-medium">{channel.phase}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">GPIO</div>
+                          <div className="font-medium">{channel.gpio}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Fault</div>
+                          <div className="font-medium">{channel.fault ?? "None"}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Last Command</div>
+                          <div className="font-medium">{channel.lastCommand}</div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="text-muted-foreground">Commanded</div>
+                          <div className="font-medium">{channel.commandedState}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Actual</div>
+                          <div className="font-medium">{channel.actualState}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div>
+                          <div className="text-sm font-medium">Output Control</div>
+                          <div className="text-xs text-muted-foreground">
+                            Send command to panel device
+                          </div>
+                        </div>
+
+                        <Switch
+                          checked={isActive}
+                          onCheckedChange={(value) => toggleChannel(channel.number, value)}
+                          disabled={status === "Offline"}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
@@ -641,15 +587,21 @@ export default function HomePage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="text-sm text-muted-foreground">Voltage RMS</div>
-                  <div className="text-xl font-semibold">{data.voltage} V</div>
+                  <div className="text-xl font-semibold">
+                    {telemetry.measurements.voltage ?? "--"} V
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Current RMS</div>
-                  <div className="text-xl font-semibold">{data.current} A</div>
+                  <div className="text-xl font-semibold">
+                    {telemetry.measurements.current ?? "--"} A
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Power</div>
-                  <div className="text-xl font-semibold">{data.power} W</div>
+                  <div className="text-xl font-semibold">
+                    {telemetry.measurements.power ?? "--"} W
+                  </div>
                 </div>
               </div>
 
@@ -678,13 +630,11 @@ export default function HomePage() {
 
               <div className="max-h-64 space-y-2 overflow-auto">
                 {eventLog.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    No events logged yet.
-                  </div>
+                  <div className="text-sm text-muted-foreground">No events logged yet.</div>
                 ) : (
                   eventLog.map((entry, index) => (
                     <div
-                      key={`${entry.time}-${index}`}
+                      key={`${entry.id}-${index}`}
                       className="rounded-lg border p-3 text-sm"
                     >
                       <div className="font-medium">{entry.time}</div>
@@ -692,9 +642,11 @@ export default function HomePage() {
                         {entry.source} → {entry.target}
                       </div>
                       <div>
-                        {entry.action} ·{" "}
-                        <span className="font-medium">{entry.result}</span>
+                        {entry.action} · <span className="font-medium">{entry.result}</span>
                       </div>
+                      {entry.notes ? (
+                        <div className="text-muted-foreground">{entry.notes}</div>
+                      ) : null}
                     </div>
                   ))
                 )}
@@ -715,7 +667,7 @@ export default function HomePage() {
 
               <div className="flex h-64 items-center justify-center rounded-xl border border-dashed bg-muted/30">
                 <div className="text-center text-sm text-muted-foreground">
-                  {data.hub.cameraOnline
+                  {telemetry.camera.online
                     ? "Camera stream ready for integration"
                     : "Camera offline / not integrated yet"}
                 </div>
@@ -735,19 +687,23 @@ export default function HomePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <div className="text-sm text-muted-foreground">Session</div>
-                  <div className="font-medium">Active</div>
+                  <div className="font-medium">{telemetry.ap.sessionState}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Control Lock</div>
-                  <div className="font-medium">{data.hub.securityState}</div>
+                  <div className="font-medium">
+                    {telemetry.ap.controlLocked ? "Locked" : "Unlocked"}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">User Role</div>
-                  <div className="font-medium">Operator</div>
+                  <div className="font-medium">{telemetry.ap.operatorName}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Audit Trail</div>
-                  <div className="font-medium">Enabled</div>
+                  <div className="font-medium">
+                    {telemetry.security.auditTrailEnabled ? "Enabled" : "Disabled"}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -757,4 +713,3 @@ export default function HomePage() {
     </main>
   )
 }
-
