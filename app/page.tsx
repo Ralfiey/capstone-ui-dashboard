@@ -156,14 +156,6 @@ export default function HomePage() {
               json.voltage === undefined || json.voltage === null
                 ? prev.measurements.voltage
                 : Number(json.voltage),
-            current:
-              json.current === undefined || json.current === null
-                ? prev.measurements.current
-                : Number(json.current),
-            power:
-              json.power === undefined || json.power === null
-                ? prev.measurements.power
-                : Number(json.power),
             continuityStatus: json.continuityStatus ?? prev.measurements.continuityStatus,
             phaseDetected: json.phaseDetected ?? prev.measurements.phaseDetected,
             neutralGroundStatus:
@@ -540,24 +532,10 @@ export default function HomePage() {
                   Live readings reported by the current prototype device
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <div className="text-sm text-muted-foreground">Voltage RMS</div>
-                  <div className="text-xl font-semibold">
-                    {telemetry.measurements.voltage ?? "--"} V
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Current RMS</div>
-                  <div className="text-xl font-semibold">
-                    {telemetry.measurements.current ?? "--"} A
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Power</div>
-                  <div className="text-xl font-semibold">
-                    {telemetry.measurements.power ?? "--"} W
-                  </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Voltage RMS</div>
+                <div className="text-xl font-semibold">
+                  {telemetry.measurements.voltage ?? "--"} V
                 </div>
               </div>
               <div className="h-64 w-full min-w-0">
