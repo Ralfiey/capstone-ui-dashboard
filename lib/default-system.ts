@@ -1,10 +1,9 @@
 import { SystemTelemetry } from "./types"
-
 export const defaultSystemTelemetry: SystemTelemetry = {
   ap: {
     id: "AP-01",
     name: "Access Point",
-    online: true,
+    online: false,
     sessionState: "idle",
     controlLocked: true,
     operatorName: "Operator",
@@ -13,9 +12,9 @@ export const defaultSystemTelemetry: SystemTelemetry = {
   ch: {
     id: "CH-01",
     label: "Communication Hub",
-    online: true,
-    endpoint: "192.168.0.204",
-    signalStrength: 82,
+    online: false,
+    endpoint: "",
+    signalStrength: 0,
     cameraOnline: false,
     securityState: "idle",
     lastHeartbeat: "Never",
@@ -24,7 +23,7 @@ export const defaultSystemTelemetry: SystemTelemetry = {
   pd: {
     id: "PD-01",
     label: "Panel Device",
-    online: true,
+    online: false,
     protocol: "ESP-NOW",
     lastHeartbeat: "Never",
     fault: null,
@@ -151,3 +150,4 @@ export const defaultSystemTelemetry: SystemTelemetry = {
     },
   ],
 }
+ 
