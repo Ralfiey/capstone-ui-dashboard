@@ -1,5 +1,4 @@
 "use client"
-
 import { defaultSystemTelemetry } from "@/lib/default-system"
 import type {
   ChannelState,
@@ -22,16 +21,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-
 type ConnectionStatus = "Connected" | "Offline" | "Connecting"
-
 type VoltageHistoryPoint = {
   time: string
   voltage: number
 }
-
-const DEFAULT_IP = "192.168.0.204"
-
 function mapChannelStateToLegacyStatus(
   channel: ChannelState
 ): "active" | "inactive" | "fault" {
@@ -42,26 +36,21 @@ function mapChannelStateToLegacyStatus(
   ) {
     return "fault"
   }
-
   if (channel.commandedState === "on" || channel.actualState === "on") {
     return "active"
   }
-
   return "inactive"
 }
-
 function getActiveChannelCount(channels: ChannelState[]) {
   return channels.filter(
     (channel) => channel.commandedState === "on" || channel.actualState === "on"
   ).length
 }
-
 export default function HomePage() {
-  const [esp32Ip, setEsp32Ip] = useState<string>(DEFAULT_IP)
-  const [savedIp, setSavedIp] = useState<string>(DEFAULT_IP)
+  const [esp32Ip, setEsp32Ip] = useState<string>("")
+  const [savedIp, setSavedIp] = useState<string>("")
   const [status, setStatus] = useState<ConnectionStatus>("Offline")
   const [lastUpdate, setLastUpdate] = useState<string>("Never")
-
   const [telemetry, setTelemetry] =
     useState<SystemTelemetry>(defaultSystemTelemetry)
   const [channels, setChannels] =
@@ -71,7 +60,6 @@ export default function HomePage() {
   const [eventLog, setEventLog] = useState<SystemTelemetry["eventLog"]>(
     defaultSystemTelemetry.eventLog
   )
-
   function addLog(
     source: string,
     target: string,
@@ -92,44 +80,35 @@ export default function HomePage() {
       ...prev.slice(0, 24),
     ])
   }
-
   function saveDeviceIp() {
     localStorage.setItem("esp32_ip", esp32Ip)
     setSavedIp(esp32Ip)
     addLog("AP", "CH Endpoint", "Save IP", `Saved ${esp32Ip}`)
   }
-
   async function fetchTelemetry() {
+    if (!savedIp) return
     try {
       setStatus("Connecting")
-
       const res = await fetch(`http://${savedIp}/telemetry`, {
         method: "GET",
       })
-
       if (!res.ok) {
         throw new Error("Failed to fetch telemetry")
       }
-
       const json = await res.json()
       const now = new Date().toLocaleTimeString()
-
       setTelemetry((prev) => {
         const updatedChannels: ChannelState[] = prev.pd.channels.map((channel) => {
           const channelKey = `channel${channel.number}`
           const fallbackRelayKey = `relay${channel.number}`
-
           const reportedState = Boolean(
             json[channelKey] ?? json[fallbackRelayKey] ?? (channel.actualState === "on")
           )
-
           const actualState: CommandState = reportedState ? "on" : "off"
-
           const channelFault =
             typeof json[`channel${channel.number}Fault`] === "string"
               ? json[`channel${channel.number}Fault`]
               : channel.fault
-
           return {
             ...channel,
             actualState,
@@ -137,9 +116,7 @@ export default function HomePage() {
             lastResponse: now,
           }
         })
-
         setChannels(updatedChannels)
-
         const nextSecurityState: SessionState =
           json.securityState === "alarm" ||
           json.securityState === "armed" ||
@@ -147,7 +124,6 @@ export default function HomePage() {
           json.securityState === "idle"
             ? (json.securityState as SessionState)
             : prev.ch.securityState
-
         return {
           ...prev,
           ch: {
@@ -216,7 +192,6 @@ export default function HomePage() {
           },
         }
       })
-
       setVoltageHistory((prev) => [
         ...prev.slice(-19),
         {
@@ -224,13 +199,11 @@ export default function HomePage() {
           voltage: Number(json.voltage ?? 0),
         },
       ])
-
       setStatus("Connected")
       setLastUpdate(now)
     } catch (error) {
       console.log("ESP32 offline", error)
       setStatus("Offline")
-
       setTelemetry((prev) => ({
         ...prev,
         ch: {
@@ -245,7 +218,6 @@ export default function HomePage() {
       }))
     }
   }
-
   async function toggleChannel(channelNumber: number, state: boolean) {
     if (state) {
       const confirmed = window.confirm(
@@ -253,25 +225,19 @@ export default function HomePage() {
       )
       if (!confirmed) return
     }
-
     const action = state ? "on" : "off"
     const now = new Date().toLocaleTimeString()
-
     try {
       const res = await fetch(`http://${savedIp}/channel/${channelNumber}/${action}`, {
         method: "GET",
       })
-
       if (!res.ok) {
         throw new Error(`Channel ${channelNumber} ${action} failed`)
       }
-
       setChannels((prev) =>
         prev.map((channel) => {
           if (channel.number !== channelNumber) return channel
-
           const nextState: CommandState = state ? "on" : "off"
-
           return {
             ...channel,
             commandedState: nextState,
@@ -281,7 +247,6 @@ export default function HomePage() {
           }
         })
       )
-
       addLog("AP", `PD Channel ${channelNumber}`, `Set ${action}`, "Success")
       fetchTelemetry()
     } catch (error) {
@@ -290,14 +255,11 @@ export default function HomePage() {
       addLog("AP", `PD Channel ${channelNumber}`, `Set ${action}`, "Failed")
     }
   }
-
   async function allOutputsOff() {
     const now = new Date().toLocaleTimeString()
-
     const activeChannels = channels.filter(
       (channel) => channel.commandedState === "on" || channel.actualState === "on"
     )
-
     for (const channel of activeChannels) {
       try {
         await fetch(`http://${savedIp}/channel/${channel.number}/off`, {
@@ -307,7 +269,6 @@ export default function HomePage() {
         console.log(`Failed to turn off channel ${channel.number}`, error)
       }
     }
-
     setChannels((prev) =>
       prev.map((channel) => ({
         ...channel,
@@ -317,11 +278,9 @@ export default function HomePage() {
         lastResponse: now,
       }))
     )
-
     addLog("AP", "All Channels", "Emergency Off", "Completed")
     fetchTelemetry()
   }
-
   useEffect(() => {
     const storedIp = localStorage.getItem("esp32_ip")
     if (storedIp) {
@@ -329,7 +288,6 @@ export default function HomePage() {
       setSavedIp(storedIp)
     }
   }, [])
-
   useEffect(() => {
     setTelemetry((prev) => ({
       ...prev,
@@ -345,15 +303,12 @@ export default function HomePage() {
       },
     }))
   }, [channels, eventLog, savedIp])
-
   useEffect(() => {
     fetchTelemetry()
     const interval = setInterval(fetchTelemetry, 2000)
     return () => clearInterval(interval)
   }, [savedIp])
-
   const activeChannelCount = getActiveChannelCount(channels)
-
   return (
     <main className="min-h-screen bg-muted/30 p-6">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -365,7 +320,6 @@ export default function HomePage() {
             AP interface for Communication Hub and Panel Device control
           </p>
         </div>
-
         <div className="grid gap-4 md:grid-cols-5">
           <Card>
             <CardContent className="p-4">
@@ -373,7 +327,6 @@ export default function HomePage() {
               <div className="mt-2 text-lg font-medium">{status}</div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">CH Status</div>
@@ -382,7 +335,6 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">PD Status</div>
@@ -391,14 +343,12 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">Active Channels</div>
               <div className="mt-2 text-lg font-medium">{activeChannelCount}</div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">Last Update</div>
@@ -406,7 +356,6 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </div>
-
         <Card>
           <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-end">
             <div className="flex-1 space-y-2">
@@ -418,13 +367,12 @@ export default function HomePage() {
               <Input
                 value={esp32Ip}
                 onChange={(e) => setEsp32Ip(e.target.value)}
-                placeholder="192.168.0.204"
+                placeholder="e.g. 192.168.0.204"
               />
               <p className="text-sm text-muted-foreground">
-                Connected CH: {telemetry.ch.endpoint}
+                Connected CH: {telemetry.ch.endpoint || "None"}
               </p>
             </div>
-
             <div className="flex flex-wrap gap-2">
               <Button onClick={saveDeviceIp}>Save</Button>
               <Button variant="outline" onClick={fetchTelemetry}>
@@ -436,7 +384,6 @@ export default function HomePage() {
             </div>
           </CardContent>
         </Card>
-
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardContent className="space-y-4 p-5">
@@ -446,7 +393,6 @@ export default function HomePage() {
                   Wireless bridge between the AP and the panel device
                 </p>
               </div>
-
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <div className="text-sm text-muted-foreground">Hub ID</div>
@@ -479,7 +425,6 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="space-y-4 p-5">
               <div>
@@ -488,7 +433,6 @@ export default function HomePage() {
                   Slave module controlling test channels inside the panel
                 </p>
               </div>
-
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <div className="text-sm text-muted-foreground">PD ID</div>
@@ -520,7 +464,6 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </div>
-
         <Card>
           <CardContent className="space-y-4 p-5">
             <div>
@@ -529,13 +472,11 @@ export default function HomePage() {
                 Remote control and status for each PD output channel
               </p>
             </div>
-
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {channels.map((channel) => {
                 const legacyStatus = mapChannelStateToLegacyStatus(channel)
                 const isActive = legacyStatus === "active"
                 const isFault = legacyStatus === "fault"
-
                 return (
                   <Card key={channel.number} className="border">
                     <CardContent className="space-y-4 p-4">
@@ -552,7 +493,6 @@ export default function HomePage() {
                           {isFault ? "Fault" : isActive ? "Active" : "Off"}
                         </Badge>
                       </div>
-
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
                           <div className="text-muted-foreground">Phase</div>
@@ -571,7 +511,6 @@ export default function HomePage() {
                           <div className="font-medium">{channel.lastCommand}</div>
                         </div>
                       </div>
-
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
                           <div className="text-muted-foreground">Commanded</div>
@@ -582,7 +521,6 @@ export default function HomePage() {
                           <div className="font-medium">{channel.actualState}</div>
                         </div>
                       </div>
-
                       <div className="flex items-center justify-between rounded-lg border p-3">
                         <div>
                           <div className="text-sm font-medium">Output Control</div>
@@ -590,7 +528,6 @@ export default function HomePage() {
                             Send command to panel device
                           </div>
                         </div>
-
                         <Switch
                           checked={isActive}
                           onCheckedChange={(value) => toggleChannel(channel.number, value)}
@@ -604,7 +541,6 @@ export default function HomePage() {
             </div>
           </CardContent>
         </Card>
-
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardContent className="space-y-4 p-5">
@@ -614,7 +550,6 @@ export default function HomePage() {
                   Live readings reported by the current prototype device
                 </p>
               </div>
-
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="text-sm text-muted-foreground">Voltage RMS</div>
@@ -635,9 +570,8 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-
               <div className="h-64 w-full min-w-0">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <LineChart data={voltageHistory}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="time" />
@@ -649,7 +583,6 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="space-y-4 p-5">
               <div>
@@ -658,7 +591,6 @@ export default function HomePage() {
                   Command history and operator actions
                 </p>
               </div>
-
               <div className="max-h-64 space-y-2 overflow-auto">
                 {eventLog.length === 0 ? (
                   <div className="text-sm text-muted-foreground">No events logged yet.</div>
@@ -681,61 +613,6 @@ export default function HomePage() {
                     </div>
                   ))
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardContent className="space-y-4 p-5">
-              <div>
-                <h2 className="text-lg font-semibold">Camera Feed</h2>
-                <p className="text-sm text-muted-foreground">
-                  Remote visual confirmation for panel and room monitoring
-                </p>
-              </div>
-
-              <div className="flex h-64 items-center justify-center rounded-xl border border-dashed bg-muted/30">
-                <div className="text-center text-sm text-muted-foreground">
-                  {telemetry.camera.online
-                    ? "Camera stream ready for integration"
-                    : "Camera offline / not integrated yet"}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="space-y-4 p-5">
-              <div>
-                <h2 className="text-lg font-semibold">Security & Access</h2>
-                <p className="text-sm text-muted-foreground">
-                  Session state and command protection
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <div className="text-sm text-muted-foreground">Session</div>
-                  <div className="font-medium">{telemetry.ap.sessionState}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Control Lock</div>
-                  <div className="font-medium">
-                    {telemetry.ap.controlLocked ? "Locked" : "Unlocked"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">User Role</div>
-                  <div className="font-medium">{telemetry.ap.operatorName}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Audit Trail</div>
-                  <div className="font-medium">
-                    {telemetry.security.auditTrailEnabled ? "Enabled" : "Disabled"}
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
