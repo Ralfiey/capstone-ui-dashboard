@@ -409,16 +409,6 @@ export default function HomePage() {
                   <div className="font-medium">{telemetry.ch.signalStrength}%</div>
                 </div>
                 <div>
-                  <div className="text-sm text-muted-foreground">Camera</div>
-                  <div className="font-medium">
-                    {telemetry.camera.online ? "Online" : "Offline"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Security</div>
-                  <div className="font-medium">{telemetry.ch.securityState}</div>
-                </div>
-                <div>
                   <div className="text-sm text-muted-foreground">Heartbeat</div>
                   <div className="font-medium">{telemetry.ch.lastHeartbeat}</div>
                 </div>
