@@ -621,17 +621,17 @@ export default function HomePage() {
                       padding={{ top: 20, bottom: 10 }}
                     />
                     <Tooltip
-                      formatter={(value: number) => [
-                        `${Number(value).toFixed(3)} V`,
-                        "Voltage",
-                      ]}
-                      contentStyle={{
-                        backgroundColor: "#ffffff",
-                        border: "1px solid #cbd5e1",
-                        color: "#000000",
-                      }}
-                      labelStyle={{ color: "#000000" }}
-                    />
+  formatter={(value: number | string | undefined) => [
+    `${Number(value ?? 0).toFixed(3)} V`,
+    "Voltage",
+  ]}
+  contentStyle={{
+    backgroundColor: "#ffffff",
+    border: "1px solid #cbd5e1",
+    color: "#000000",
+  }}
+  labelStyle={{ color: "#000000" }}
+/>
                     <Line
                       type="monotone"
                       dataKey="voltage"
