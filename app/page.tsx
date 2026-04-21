@@ -240,9 +240,12 @@ export default function HomePage() {
     const now = new Date().toLocaleTimeString()
 
     try {
-      const res = await fetch(`http://${savedIp}/channel/${channelNumber}/${action}`, {
-        method: "GET",
-      })
+      const res = await fetch(
+        `http://${savedIp}/channel/${channelNumber}/${action}`,
+        {
+          method: "GET",
+        }
+      )
 
       if (!res.ok) {
         throw new Error(`Channel ${channelNumber} ${action} failed`)
@@ -341,57 +344,63 @@ export default function HomePage() {
     <div className="min-h-screen bg-slate-950 text-white p-6">
       <div className="mx-auto max-w-7xl space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Remote Panel Testing Dashboard</h1>
+          <h1 className="text-3xl font-bold text-white">
+            Remote Panel Testing Dashboard
+          </h1>
           <p className="text-slate-400">
             User interface for Communication Hub and Panel Device control
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-5">
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-slate-900 border-slate-800 text-white">
             <CardContent className="p-4">
               <p className="text-sm text-slate-400">UI Status</p>
-              <p className="mt-2 text-xl font-semibold">{status}</p>
+              <p className="mt-2 text-xl font-semibold text-white">{status}</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-slate-900 border-slate-800 text-white">
             <CardContent className="p-4">
               <p className="text-sm text-slate-400">CH Status</p>
-              <p className="mt-2 text-xl font-semibold">
+              <p className="mt-2 text-xl font-semibold text-white">
                 {telemetry.ch.online ? "Online" : "Offline"}
               </p>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-slate-900 border-slate-800 text-white">
             <CardContent className="p-4">
               <p className="text-sm text-slate-400">PD Status</p>
-              <p className="mt-2 text-xl font-semibold">
+              <p className="mt-2 text-xl font-semibold text-white">
                 {telemetry.pd.online ? "Online" : "Offline"}
               </p>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-slate-900 border-slate-800 text-white">
             <CardContent className="p-4">
               <p className="text-sm text-slate-400">Active Channels</p>
-              <p className="mt-2 text-xl font-semibold">{activeChannelCount}</p>
+              <p className="mt-2 text-xl font-semibold text-white">
+                {activeChannelCount}
+              </p>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-slate-900 border-slate-800 text-white">
             <CardContent className="p-4">
               <p className="text-sm text-slate-400">Last Update</p>
-              <p className="mt-2 text-xl font-semibold">{lastUpdate}</p>
+              <p className="mt-2 text-xl font-semibold text-white">
+                {lastUpdate}
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-slate-900 border-slate-800 text-white">
           <CardContent className="p-4 space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">CH Endpoint</h2>
+              <h2 className="text-lg font-semibold text-white">CH Endpoint</h2>
               <p className="text-sm text-slate-400">
                 Enter the current IP address used by the UI to reach the
                 communication hub.
@@ -403,13 +412,26 @@ export default function HomePage() {
                 value={esp32Ip}
                 onChange={(e) => setEsp32Ip(e.target.value)}
                 placeholder="e.g. 192.168.0.204"
-                className="bg-slate-950 border-slate-700 text-white"
+                className="bg-slate-950 border-slate-700 text-white placeholder:text-slate-500"
               />
-              <Button onClick={saveDeviceIp}>Save</Button>
-              <Button variant="outline" onClick={fetchTelemetry}>
+              <Button
+                onClick={saveDeviceIp}
+                className="bg-slate-700 text-white hover:bg-slate-600"
+              >
+                Save
+              </Button>
+              <Button
+                variant="outline"
+                onClick={fetchTelemetry}
+                className="border-slate-600 bg-white text-black hover:bg-slate-200"
+              >
                 Refresh
               </Button>
-              <Button variant="destructive" onClick={allOutputsOff}>
+              <Button
+                variant="destructive"
+                onClick={allOutputsOff}
+                className="text-white"
+              >
                 All Outputs Off
               </Button>
             </div>
@@ -421,10 +443,12 @@ export default function HomePage() {
         </Card>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-slate-900 border-slate-800 text-white">
             <CardContent className="p-4 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold">Communication Hub</h2>
+                <h2 className="text-lg font-semibold text-white">
+                  Communication Hub
+                </h2>
                 <p className="text-sm text-slate-400">
                   Wireless bridge between the UI and the panel device
                 </p>
@@ -433,13 +457,19 @@ export default function HomePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-slate-400">Status</p>
-                  <Badge variant={telemetry.ch.online ? "default" : "secondary"}>
+                  <Badge
+                    className={
+                      telemetry.ch.online
+                        ? "bg-green-600 text-white hover:bg-green-600"
+                        : "bg-slate-300 text-black hover:bg-slate-300"
+                    }
+                  >
                     {telemetry.ch.online ? "Online" : "Offline"}
                   </Badge>
                 </div>
                 <div>
                   <p className="text-sm text-slate-400">Signal Strength</p>
-                  <p className="font-medium">
+                  <p className="font-medium text-white">
                     {telemetry.ch.online
                       ? rssiToPercent(telemetry.ch.signalStrength)
                       : "0%"}
@@ -449,10 +479,12 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-slate-900 border-slate-800 text-white">
             <CardContent className="p-4 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold">Panel Device</h2>
+                <h2 className="text-lg font-semibold text-white">
+                  Panel Device
+                </h2>
                 <p className="text-sm text-slate-400">
                   Slave module controlling test channels inside the panel
                 </p>
@@ -461,21 +493,31 @@ export default function HomePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-slate-400">Status</p>
-                  <Badge variant={telemetry.pd.online ? "default" : "secondary"}>
+                  <Badge
+                    className={
+                      telemetry.pd.online
+                        ? "bg-green-600 text-white hover:bg-green-600"
+                        : "bg-slate-300 text-black hover:bg-slate-300"
+                    }
+                  >
                     {telemetry.pd.online ? "Online" : "Offline"}
                   </Badge>
                 </div>
                 <div>
                   <p className="text-sm text-slate-400">Protocol</p>
-                  <p className="font-medium">{telemetry.pd.protocol}</p>
+                  <p className="font-medium text-white">
+                    {telemetry.pd.protocol}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-400">Fault</p>
-                  <p className="font-medium">{telemetry.pd.fault ?? "None"}</p>
+                  <p className="font-medium text-white">
+                    {telemetry.pd.fault ?? "None"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-400">Voltage</p>
-                  <p className="font-medium">
+                  <p className="font-medium text-white">
                     {telemetry.measurements.voltage === null
                       ? "No data"
                       : `${telemetry.measurements.voltage.toFixed(3)} V`}
@@ -486,10 +528,12 @@ export default function HomePage() {
           </Card>
         </div>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-slate-900 border-slate-800 text-white">
           <CardContent className="p-4 space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">Panel Test Channels</h2>
+              <h2 className="text-lg font-semibold text-white">
+                Panel Test Channels
+              </h2>
               <p className="text-sm text-slate-400">
                 Remote control and status for each PD output channel
               </p>
@@ -504,12 +548,12 @@ export default function HomePage() {
                 return (
                   <Card
                     key={channel.number}
-                    className="bg-slate-950 border-slate-800"
+                    className="bg-slate-950 border-slate-800 text-white"
                   >
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-semibold">
+                          <p className="font-semibold text-white">
                             Channel {channel.number}
                           </p>
                           <p className="text-sm text-slate-400">
@@ -517,12 +561,12 @@ export default function HomePage() {
                           </p>
                         </div>
                         <Badge
-                          variant={
+                          className={
                             isFault
-                              ? "destructive"
+                              ? "bg-red-600 text-white hover:bg-red-600"
                               : isActive
-                              ? "default"
-                              : "secondary"
+                              ? "bg-green-600 text-white hover:bg-green-600"
+                              : "bg-slate-300 text-black hover:bg-slate-300"
                           }
                         >
                           {isFault ? "Fault" : isActive ? "Active" : "Off"}
@@ -532,19 +576,19 @@ export default function HomePage() {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <p className="text-slate-400">Phase</p>
-                          <p>{channel.phase}</p>
+                          <p className="text-white">{channel.phase}</p>
                         </div>
                         <div>
                           <p className="text-slate-400">GPIO</p>
-                          <p>{channel.gpio}</p>
+                          <p className="text-white">{channel.gpio}</p>
                         </div>
                         <div>
                           <p className="text-slate-400">Commanded</p>
-                          <p>{channel.commandedState}</p>
+                          <p className="text-white">{channel.commandedState}</p>
                         </div>
                         <div>
                           <p className="text-slate-400">Actual</p>
-                          <p>{channel.actualState}</p>
+                          <p className="text-white">{channel.actualState}</p>
                         </div>
                       </div>
 
@@ -558,7 +602,7 @@ export default function HomePage() {
                         />
                       </div>
 
-                      <div className="text-xs text-slate-500 space-y-1">
+                      <div className="text-xs text-slate-400 space-y-1">
                         <p>Last command: {channel.lastCommand}</p>
                         <p>Last response: {channel.lastResponse}</p>
                       </div>
@@ -571,10 +615,12 @@ export default function HomePage() {
         </Card>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-slate-900 border-slate-800 text-white">
             <CardContent className="p-4 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold">Voltage Trend</h2>
+                <h2 className="text-lg font-semibold text-white">
+                  Voltage Trend
+                </h2>
                 <p className="text-sm text-slate-400">
                   Recent live voltage samples from the panel device
                 </p>
@@ -583,13 +629,21 @@ export default function HomePage() {
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={voltageHistory}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis domain={["auto", "auto"]} />
-                    <Tooltip />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="time" stroke="#94a3b8" />
+                    <YAxis domain={["auto", "auto"]} stroke="#94a3b8" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0f172a",
+                        border: "1px solid #334155",
+                        color: "#ffffff",
+                      }}
+                      labelStyle={{ color: "#ffffff" }}
+                    />
                     <Line
                       type="monotone"
                       dataKey="voltage"
+                      stroke="#38bdf8"
                       strokeWidth={2}
                       dot={false}
                     />
@@ -599,10 +653,10 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-slate-900 border-slate-800 text-white">
             <CardContent className="p-4 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold">Event Log</h2>
+                <h2 className="text-lg font-semibold text-white">Event Log</h2>
                 <p className="text-sm text-slate-400">
                   Recent UI actions and system updates
                 </p>
@@ -612,10 +666,10 @@ export default function HomePage() {
                 {eventLog.map((entry) => (
                   <div
                     key={entry.id}
-                    className="rounded-lg border border-slate-800 bg-slate-950 p-3"
+                    className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-white"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium">{entry.action}</p>
+                      <p className="font-medium text-white">{entry.action}</p>
                       <span className="text-xs text-slate-500">
                         {entry.time}
                       </span>
@@ -623,7 +677,7 @@ export default function HomePage() {
                     <p className="text-sm text-slate-400">
                       {entry.source} → {entry.target}
                     </p>
-                    <p className="text-sm">{entry.result}</p>
+                    <p className="text-sm text-white">{entry.result}</p>
                     {entry.notes ? (
                       <p className="text-xs text-slate-500">{entry.notes}</p>
                     ) : null}
