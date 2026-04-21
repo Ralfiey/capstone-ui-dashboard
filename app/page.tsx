@@ -1,7 +1,7 @@
 "use client"
 
 import { defaultSystemTelemetry } from "@/lib/default-system"
-import type { ChannelState, CommandState, SystemTelemetry } from "@/lib/types"
+import type { ChannelState, CommandState } from "@/lib/types"
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,27 @@ type ConnectionStatus = "Connected" | "Offline" | "Connecting"
 
 type VoltageHistoryPoint = {
   time: string
-  voltage: number
+  voltage1: number
+  voltage2: number
+  voltage3: number
+  voltage4: number
+  voltage5: number
+  voltage6: number
+}
+
+type ChannelVoltageState = {
+  voltage1: number | null
+  voltage2: number | null
+  voltage3: number | null
+  voltage4: number | null
+  voltage5: number | null
+  voltage6: number | null
+  channel1Online: boolean
+  channel2Online: boolean
+  channel3Online: boolean
+  channel4Online: boolean
+  channel5Online: boolean
+  channel6Online: boolean
 }
 
 function mapChannelStateToLegacyStatus(
@@ -61,14 +81,25 @@ export default function HomePage() {
   const [savedIp, setSavedIp] = useState("")
   const [status, setStatus] = useState<ConnectionStatus>("Offline")
   const [lastUpdate, setLastUpdate] = useState("Never")
-  const [telemetry, setTelemetry] =
-    useState<SystemTelemetry>(defaultSystemTelemetry)
-  const [channels, setChannels] = useState<ChannelState[]>(
-    defaultSystemTelemetry.pd.channels
-  )
+  const [telemetry, setTelemetry] = useState(defaultSystemTelemetry)
+  const [channels, setChannels] = useState(defaultSystemTelemetry.pd.channels)
   const [voltageHistory, setVoltageHistory] = useState<VoltageHistoryPoint[]>(
     []
   )
+  const [channelVoltages, setChannelVoltages] = useState<ChannelVoltageState>({
+    voltage1: null,
+    voltage2: null,
+    voltage3: null,
+    voltage4: null,
+    voltage5: null,
+    voltage6: null,
+    channel1Online: false,
+    channel2Online: false,
+    channel3Online: false,
+    channel4Online: false,
+    channel5Online: false,
+    channel6Online: false,
+  })
   const [eventLog, setEventLog] = useState(defaultSystemTelemetry.eventLog)
 
   function addLog(
@@ -114,6 +145,54 @@ export default function HomePage() {
 
       const json = await res.json()
       const now = new Date().toLocaleTimeString()
+
+      const nextChannelVoltages: ChannelVoltageState = {
+        voltage1:
+          json.voltage1 === undefined || json.voltage1 === null
+            ? null
+            : Number(json.voltage1),
+        voltage2:
+          json.voltage2 === undefined || json.voltage2 === null
+            ? null
+            : Number(json.voltage2),
+        voltage3:
+          json.voltage3 === undefined || json.voltage3 === null
+            ? null
+            : Number(json.voltage3),
+        voltage4:
+          json.voltage4 === undefined || json.voltage4 === null
+            ? null
+            : Number(json.voltage4),
+        voltage5:
+          json.voltage5 === undefined || json.voltage5 === null
+            ? null
+            : Number(json.voltage5),
+        voltage6:
+          json.voltage6 === undefined || json.voltage6 === null
+            ? null
+            : Number(json.voltage6),
+        channel1Online: Boolean(json.channel1 ?? json.relay1 ?? false),
+        channel2Online: Boolean(json.channel2 ?? json.relay2 ?? false),
+        channel3Online: Boolean(json.channel3 ?? json.relay3 ?? false),
+        channel4Online: Boolean(json.channel4 ?? json.relay4 ?? false),
+        channel5Online: Boolean(json.channel5 ?? json.relay5 ?? false),
+        channel6Online: Boolean(json.channel6 ?? json.relay6 ?? false),
+      }
+
+      setChannelVoltages(nextChannelVoltages)
+
+      setVoltageHistory((prev) => [
+        ...prev.slice(-19),
+        {
+          time: now,
+          voltage1: nextChannelVoltages.voltage1 ?? 0,
+          voltage2: nextChannelVoltages.voltage2 ?? 0,
+          voltage3: nextChannelVoltages.voltage3 ?? 0,
+          voltage4: nextChannelVoltages.voltage4 ?? 0,
+          voltage5: nextChannelVoltages.voltage5 ?? 0,
+          voltage6: nextChannelVoltages.voltage6 ?? 0,
+        },
+      ])
 
       setTelemetry((prev) => {
         const updatedChannels: ChannelState[] = prev.pd.channels.map(
@@ -184,25 +263,13 @@ export default function HomePage() {
                 : Number(json.voltage),
             continuityStatus:
               json.continuityStatus ?? prev.measurements.continuityStatus,
-            phaseDetected:
-              json.phaseDetected ?? prev.measurements.phaseDetected,
+            phaseDetected: json.phaseDetected ?? prev.measurements.phaseDetected,
             neutralGroundStatus:
-              json.neutralGroundStatus ??
-              prev.measurements.neutralGroundStatus,
+              json.neutralGroundStatus ?? prev.measurements.neutralGroundStatus,
             freshness: `Updated ${now}`,
           },
         }
       })
-
-      if (json.voltage !== undefined && json.voltage !== null) {
-        setVoltageHistory((prev) => [
-          ...prev.slice(-19),
-          {
-            time: now,
-            voltage: Number(json.voltage),
-          },
-        ])
-      }
 
       setStatus("Connected")
       setLastUpdate(now)
@@ -240,12 +307,9 @@ export default function HomePage() {
     const now = new Date().toLocaleTimeString()
 
     try {
-      const res = await fetch(
-        `http://${savedIp}/channel/${channelNumber}/${action}`,
-        {
-          method: "GET",
-        }
-      )
+      const res = await fetch(`http://${savedIp}/channel/${channelNumber}/${action}`, {
+        method: "GET",
+      })
 
       if (!res.ok) {
         throw new Error(`Channel ${channelNumber} ${action} failed`)
@@ -278,7 +342,6 @@ export default function HomePage() {
 
   async function allOutputsOff() {
     const now = new Date().toLocaleTimeString()
-
     const activeChannels = channels.filter(
       (channel) =>
         channel.commandedState === "on" || channel.actualState === "on"
@@ -340,67 +403,125 @@ export default function HomePage() {
 
   const activeChannelCount = getActiveChannelCount(channels)
 
+  const activeChartChannel =
+    channelVoltages.channel1Online
+      ? "voltage1"
+      : channelVoltages.channel2Online
+      ? "voltage2"
+      : channelVoltages.channel3Online
+      ? "voltage3"
+      : channelVoltages.channel4Online
+      ? "voltage4"
+      : channelVoltages.channel5Online
+      ? "voltage5"
+      : channelVoltages.channel6Online
+      ? "voltage6"
+      : "voltage1"
+
+  const activeChartLabel =
+    activeChartChannel === "voltage1"
+      ? "Channel 1"
+      : activeChartChannel === "voltage2"
+      ? "Channel 2"
+      : activeChartChannel === "voltage3"
+      ? "Channel 3"
+      : activeChartChannel === "voltage4"
+      ? "Channel 4"
+      : activeChartChannel === "voltage5"
+      ? "Channel 5"
+      : "Channel 6"
+
+  const activeChartValue =
+    activeChartChannel === "voltage1"
+      ? channelVoltages.voltage1
+      : activeChartChannel === "voltage2"
+      ? channelVoltages.voltage2
+      : activeChartChannel === "voltage3"
+      ? channelVoltages.voltage3
+      : activeChartChannel === "voltage4"
+      ? channelVoltages.voltage4
+      : activeChartChannel === "voltage5"
+      ? channelVoltages.voltage5
+      : channelVoltages.voltage6
+
   return (
-    <div className="min-h-screen bg-white text-black p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <main className="min-h-screen bg-white text-black">
+      <div className="mx-auto max-w-7xl p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-black">
             Remote Panel Testing Dashboard
           </h1>
-          <p className="text-slate-600">
+          <p className="text-slate-600 mt-2">
             User interface for Communication Hub and Panel Device control
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-5">
-          <Card className="bg-white border-slate-200 text-black">
+          <Card className="bg-white border-slate-200 shadow-sm">
             <CardContent className="p-4">
-              <p className="text-sm text-slate-500">UI Status</p>
-              <p className="mt-2 text-xl font-semibold text-black">{status}</p>
+              <div className="text-sm text-slate-500">UI Status</div>
+              <div className="mt-2">
+                <Badge
+                  variant="outline"
+                  className="border-slate-300 text-black bg-white"
+                >
+                  {status}
+                </Badge>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-slate-200 text-black">
+          <Card className="bg-white border-slate-200 shadow-sm">
             <CardContent className="p-4">
-              <p className="text-sm text-slate-500">CH Status</p>
-              <p className="mt-2 text-xl font-semibold text-black">
-                {telemetry.ch.online ? "Online" : "Offline"}
-              </p>
+              <div className="text-sm text-slate-500">CH Status</div>
+              <div className="mt-2">
+                <Badge
+                  variant="outline"
+                  className="border-slate-300 text-black bg-white"
+                >
+                  {telemetry.ch.online ? "Online" : "Offline"}
+                </Badge>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-slate-200 text-black">
+          <Card className="bg-white border-slate-200 shadow-sm">
             <CardContent className="p-4">
-              <p className="text-sm text-slate-500">PD Status</p>
-              <p className="mt-2 text-xl font-semibold text-black">
-                {telemetry.pd.online ? "Online" : "Offline"}
-              </p>
+              <div className="text-sm text-slate-500">PD Status</div>
+              <div className="mt-2">
+                <Badge
+                  variant="outline"
+                  className="border-slate-300 text-black bg-white"
+                >
+                  {telemetry.pd.online ? "Online" : "Offline"}
+                </Badge>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-slate-200 text-black">
+          <Card className="bg-white border-slate-200 shadow-sm">
             <CardContent className="p-4">
-              <p className="text-sm text-slate-500">Active Channels</p>
-              <p className="mt-2 text-xl font-semibold text-black">
+              <div className="text-sm text-slate-500">Active Channels</div>
+              <div className="mt-2 text-2xl font-semibold text-black">
                 {activeChannelCount}
-              </p>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-slate-200 text-black">
+          <Card className="bg-white border-slate-200 shadow-sm">
             <CardContent className="p-4">
-              <p className="text-sm text-slate-500">Last Update</p>
-              <p className="mt-2 text-xl font-semibold text-black">
+              <div className="text-sm text-slate-500">Last Update</div>
+              <div className="mt-2 text-sm font-medium text-black">
                 {lastUpdate}
-              </p>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        <Card className="bg-white border-slate-200 text-black">
-          <CardContent className="p-4 space-y-4">
+        <Card className="bg-white border-slate-200 shadow-sm">
+          <CardContent className="p-6 space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-black">CH Endpoint</h2>
+              <h2 className="text-xl font-semibold text-black">CH Endpoint</h2>
               <p className="text-sm text-slate-600">
                 Enter the current IP address used by the UI to reach the
                 communication hub.
@@ -423,17 +544,17 @@ export default function HomePage() {
               </Button>
             </div>
 
-            <p className="text-sm text-slate-600">
+            <div className="text-sm text-slate-600">
               Connected CH: {telemetry.ch.endpoint || "None"}
-            </p>
+            </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="bg-white border-slate-200 text-black">
-            <CardContent className="p-4 space-y-4">
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardContent className="p-6 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold text-black">
+                <h2 className="text-xl font-semibold text-black">
                   Communication Hub
                 </h2>
                 <p className="text-sm text-slate-600">
@@ -441,35 +562,30 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-slate-500">Status</p>
-                  <Badge
-                    className={
-                      telemetry.ch.online
-                        ? "bg-green-600 text-white hover:bg-green-600"
-                        : "bg-slate-200 text-black hover:bg-slate-200"
-                    }
-                  >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <div className="text-sm text-slate-500">Status</div>
+                  <div className="mt-2 text-lg font-medium text-black">
                     {telemetry.ch.online ? "Online" : "Offline"}
-                  </Badge>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-slate-500">Signal Strength</p>
-                  <p className="font-medium text-black">
+
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <div className="text-sm text-slate-500">Signal Strength</div>
+                  <div className="mt-2 text-lg font-medium text-black">
                     {telemetry.ch.online
                       ? rssiToPercent(telemetry.ch.signalStrength)
                       : "0%"}
-                  </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-slate-200 text-black">
-            <CardContent className="p-4 space-y-4">
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardContent className="p-6 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold text-black">
+                <h2 className="text-xl font-semibold text-black">
                   Panel Device
                 </h2>
                 <p className="text-sm text-slate-600">
@@ -477,34 +593,29 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-slate-500">Status</p>
-                  <Badge
-                    className={
-                      telemetry.pd.online
-                        ? "bg-green-600 text-white hover:bg-green-600"
-                        : "bg-slate-200 text-black hover:bg-slate-200"
-                    }
-                  >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <div className="text-sm text-slate-500">Status</div>
+                  <div className="mt-2 text-lg font-medium text-black">
                     {telemetry.pd.online ? "Online" : "Offline"}
-                  </Badge>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-slate-500">Protocol</p>
-                  <p className="font-medium text-black">
+
+                <div className="rounded-xl border border-slate-200 p-4">
+                  <div className="text-sm text-slate-500">Protocol</div>
+                  <div className="mt-2 text-lg font-medium text-black">
                     {telemetry.pd.protocol}
-                  </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <Card className="bg-white border-slate-200 text-black">
-          <CardContent className="p-4 space-y-4">
+        <Card className="bg-white border-slate-200 shadow-sm">
+          <CardContent className="p-6 space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-black">
+              <h2 className="text-xl font-semibold text-black">
                 Panel Test Channels
               </h2>
               <p className="text-sm text-slate-600">
@@ -519,171 +630,266 @@ export default function HomePage() {
                 const isFault = legacyStatus === "fault"
 
                 return (
-                  <Card
+                  <div
                     key={channel.number}
-                    className="bg-slate-50 border-slate-200 text-black"
+                    className="rounded-xl border border-slate-200 p-4 space-y-3"
                   >
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-black">
-                            Channel {channel.number}
-                          </p>
-                          <p className="text-sm text-slate-600">
-                            {channel.label}
-                          </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-lg font-semibold text-black">
+                          Channel {channel.number}
                         </div>
-                        <Badge
-                          className={
-                            isFault
-                              ? "bg-red-600 text-white hover:bg-red-600"
-                              : isActive
-                              ? "bg-green-600 text-white hover:bg-green-600"
-                              : "bg-slate-200 text-black hover:bg-slate-200"
-                          }
-                        >
-                          {isFault ? "Fault" : isActive ? "Active" : "Off"}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <p className="text-slate-500">Phase</p>
-                          <p className="text-black">{channel.phase}</p>
-                        </div>
-                        <div>
-                          <p className="text-slate-500">GPIO</p>
-                          <p className="text-black">{channel.gpio}</p>
-                        </div>
-                        <div>
-                          <p className="text-slate-500">Commanded</p>
-                          <p className="text-black">{channel.commandedState}</p>
-                        </div>
-                        <div>
-                          <p className="text-slate-500">Actual</p>
-                          <p className="text-black">{channel.actualState}</p>
+                        <div className="text-sm text-slate-600">
+                          {channel.label}
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-500">Output</span>
-                        <Switch
-                          checked={channel.actualState === "on"}
-                          onCheckedChange={(checked) =>
-                            toggleChannel(channel.number, checked)
-                          }
-                        />
-                      </div>
+                      <Badge
+                        variant="outline"
+                        className="border-slate-300 text-black bg-white"
+                      >
+                        {isFault ? "Fault" : isActive ? "Active" : "Off"}
+                      </Badge>
+                    </div>
 
-                      <div className="text-xs text-slate-500 space-y-1">
-                        <p>Last command: {channel.lastCommand}</p>
-                        <p>Last response: {channel.lastResponse}</p>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <div className="text-slate-500">Phase</div>
+                        <div className="font-medium text-black">
+                          {channel.phase}
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div>
+                        <div className="text-slate-500">GPIO</div>
+                        <div className="font-medium text-black">
+                          {channel.gpio}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500">Commanded</div>
+                        <div className="font-medium text-black">
+                          {channel.commandedState}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500">Actual</div>
+                        <div className="font-medium text-black">
+                          {channel.actualState}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
+                      <div>
+                        <div className="text-sm font-medium text-black">
+                          Output
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Send command to panel device
+                        </div>
+                      </div>
+                      <Switch
+                        checked={
+                          channel.commandedState === "on" ||
+                          channel.actualState === "on"
+                        }
+                        onCheckedChange={(checked) =>
+                          toggleChannel(channel.number, checked)
+                        }
+                        disabled={status === "Offline"}
+                      />
+                    </div>
+
+                    <div className="text-xs text-slate-500 space-y-1">
+                      <div>Last command: {channel.lastCommand}</div>
+                      <div>Last response: {channel.lastResponse}</div>
+                    </div>
+                  </div>
                 )
               })}
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="bg-white border-slate-200 text-black">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-black">
-                    Voltage RMS
-                  </h2>
-                  <p className="text-sm text-slate-600">
-                    Recent live voltage samples from the panel device
-                  </p>
+        <Card className="bg-white border-slate-200 shadow-sm">
+          <CardContent className="p-6 space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-black">
+                Electrical Telemetry
+              </h2>
+              <p className="text-sm text-slate-600">
+                Live channel voltage readings with automatic waveform switching
+              </p>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-black">
+                    All Channel Voltages
+                  </h3>
+                  <span className="text-xs text-slate-500">
+                    Updates every 2 seconds
+                  </span>
                 </div>
 
-                <div className="text-right">
-                  <p className="text-sm text-slate-500">Current Voltage</p>
-                  <p className="text-3xl font-bold text-black">
-                    {telemetry.measurements.voltage === null
-                      ? "No data"
-                      : `${telemetry.measurements.voltage.toFixed(3)} V`}
-                  </p>
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5, 6].map((ch) => {
+                    const voltage =
+                      ch === 1
+                        ? channelVoltages.voltage1
+                        : ch === 2
+                        ? channelVoltages.voltage2
+                        : ch === 3
+                        ? channelVoltages.voltage3
+                        : ch === 4
+                        ? channelVoltages.voltage4
+                        : ch === 5
+                        ? channelVoltages.voltage5
+                        : channelVoltages.voltage6
+
+                    const isOnline =
+                      ch === 1
+                        ? channelVoltages.channel1Online
+                        : ch === 2
+                        ? channelVoltages.channel2Online
+                        : ch === 3
+                        ? channelVoltages.channel3Online
+                        : ch === 4
+                        ? channelVoltages.channel4Online
+                        : ch === 5
+                        ? channelVoltages.channel5Online
+                        : channelVoltages.channel6Online
+
+                    return (
+                      <div
+                        key={ch}
+                        className="grid grid-cols-3 items-center rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      >
+                        <div className="font-medium text-black">
+                          Channel {ch}
+                        </div>
+                        <div className="text-black">
+                          {voltage === null ? "No data" : `${voltage.toFixed(3)} V`}
+                        </div>
+                        <div className="flex justify-end">
+                          <Badge
+                            variant="outline"
+                            className="border-slate-300 text-black bg-white"
+                          >
+                            {isOnline ? "ON" : "OFF"}
+                          </Badge>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={voltageHistory}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="time" stroke="#475569" />
-                    <YAxis
-                      domain={[0, "auto"]}
-                      stroke="#475569"
-                      padding={{ top: 20, bottom: 10 }}
-                    />
-                   <Tooltip
-  formatter={(value) => {
-    const numericValue = Array.isArray(value)
-      ? Number(value[0] ?? 0)
-      : Number(value ?? 0)
-
-    return [`${numericValue.toFixed(3)} V`, "Voltage"]
-  }}
-  contentStyle={{
-    backgroundColor: "#ffffff",
-    border: "1px solid #cbd5e1",
-    color: "#000000",
-  }}
-  labelStyle={{ color: "#000000" }}
-/>
-                    <Line
-                      type="monotone"
-                      dataKey="voltage"
-                      stroke="#2563eb"
-                      strokeWidth={2}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border-slate-200 text-black">
-            <CardContent className="p-4 space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold text-black">Event Log</h2>
-                <p className="text-sm text-slate-600">
-                  Recent UI actions and system updates
-                </p>
-              </div>
-
-              <div className="space-y-3 max-h-72 overflow-y-auto">
-                {eventLog.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-black"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-black">{entry.action}</p>
-                      <span className="text-xs text-slate-500">
-                        {entry.time}
-                      </span>
-                    </div>
+              <div className="rounded-xl border border-slate-200 p-4 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-medium text-black">
+                      Live Waveform
+                    </h3>
                     <p className="text-sm text-slate-600">
-                      {entry.source} → {entry.target}
+                      Auto-switches to the currently active channel
                     </p>
-                    <p className="text-sm text-black">{entry.result}</p>
-                    {entry.notes ? (
-                      <p className="text-xs text-slate-500">{entry.notes}</p>
-                    ) : null}
                   </div>
-                ))}
+
+                  <div className="text-right">
+                    <div className="text-sm text-slate-500">
+                      Displayed Channel
+                    </div>
+                    <div className="text-base font-semibold text-black">
+                      {activeChartLabel}
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {activeChartValue === null
+                        ? "No data"
+                        : `${activeChartValue.toFixed(3)} V`}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={voltageHistory}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="time" />
+                      <YAxis
+                        domain={["auto", "auto"]}
+                        tickFormatter={(value) => `${Number(value).toFixed(1)} V`}
+                      />
+                      <Tooltip
+                        formatter={(value) => {
+                          const numericValue = Array.isArray(value)
+                            ? Number(value[0] ?? 0)
+                            : Number(value ?? 0)
+                          return [`${numericValue.toFixed(3)} V`, activeChartLabel]
+                        }}
+                        contentStyle={{
+                          backgroundColor: "#ffffff",
+                          border: "1px solid #cbd5e1",
+                          color: "#000000",
+                        }}
+                        labelStyle={{ color: "#000000" }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey={activeChartChannel}
+                        dot={false}
+                        strokeWidth={2}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-slate-200 shadow-sm">
+          <CardContent className="p-6 space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold text-black">Event Log</h2>
+              <p className="text-sm text-slate-600">
+                Recent UI actions and system updates
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {eventLog.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-xl border border-slate-200 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="font-medium text-black">
+                        {entry.action}
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        {entry.source} → {entry.target}
+                      </div>
+                    </div>
+                    <div className="text-sm text-slate-500">{entry.time}</div>
+                  </div>
+
+                  <div className="mt-2 text-sm text-black">{entry.result}</div>
+
+                  {entry.notes ? (
+                    <div className="mt-1 text-sm text-slate-600">
+                      {entry.notes}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </main>
   )
 }
