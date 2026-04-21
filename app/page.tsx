@@ -496,20 +496,6 @@ export default function HomePage() {
                     {telemetry.pd.protocol}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-slate-500">Fault</p>
-                  <p className="font-medium text-black">
-                    {telemetry.pd.fault ?? "None"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Voltage</p>
-                  <p className="font-medium text-black">
-                    {telemetry.measurements.voltage === null
-                      ? "No data"
-                      : `${telemetry.measurements.voltage.toFixed(3)} V`}
-                  </p>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -604,13 +590,24 @@ export default function HomePage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="bg-white border-slate-200 text-black">
             <CardContent className="p-4 space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold text-black">
-                  Voltage Trend
-                </h2>
-                <p className="text-sm text-slate-600">
-                  Recent live voltage samples from the panel device
-                </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-black">
+                    Voltage RMS
+                  </h2>
+                  <p className="text-sm text-slate-600">
+                    Recent live voltage samples from the panel device
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-sm text-slate-500">Current Voltage</p>
+                  <p className="text-3xl font-bold text-black">
+                    {telemetry.measurements.voltage === null
+                      ? "No data"
+                      : `${telemetry.measurements.voltage.toFixed(3)} V`}
+                  </p>
+                </div>
               </div>
 
               <div className="h-72">
@@ -618,8 +615,16 @@ export default function HomePage() {
                   <LineChart data={voltageHistory}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="time" stroke="#475569" />
-                    <YAxis domain={["auto", "auto"]} stroke="#475569" />
+                    <YAxis
+                      domain={[0, "auto"]}
+                      stroke="#475569"
+                      padding={{ top: 20, bottom: 10 }}
+                    />
                     <Tooltip
+                      formatter={(value: number) => [
+                        `${Number(value).toFixed(3)} V`,
+                        "Voltage",
+                      ]}
                       contentStyle={{
                         backgroundColor: "#ffffff",
                         border: "1px solid #cbd5e1",
@@ -633,6 +638,7 @@ export default function HomePage() {
                       stroke="#2563eb"
                       strokeWidth={2}
                       dot={false}
+                      isAnimationActive={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
