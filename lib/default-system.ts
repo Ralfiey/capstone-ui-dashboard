@@ -1,25 +1,24 @@
 import { SystemTelemetry } from "./types"
+
 export const defaultSystemTelemetry: SystemTelemetry = {
-  ap: {
+  ui: {
     id: "UI-01",
     name: "User Interface",
-    online: false,
-    sessionState: "idle",
-    controlLocked: true,
+    online: true,
     operatorName: "Operator",
     lastHeartbeat: "Never",
   },
+
   ch: {
     id: "CH-01",
     label: "Communication Hub",
     online: false,
     endpoint: "",
     signalStrength: 0,
-    cameraOnline: false,
-    securityState: "idle",
     lastHeartbeat: "Never",
     bridgeProtocol: "ESP-NOW",
   },
+
   pd: {
     id: "PD-01",
     label: "Panel Device",
@@ -115,6 +114,7 @@ export const defaultSystemTelemetry: SystemTelemetry = {
       },
     ],
   },
+
   measurements: {
     voltage: null,
     continuityStatus: "Unknown",
@@ -122,20 +122,7 @@ export const defaultSystemTelemetry: SystemTelemetry = {
     neutralGroundStatus: "Unknown",
     freshness: "No live data yet",
   },
-  security: {
-    alarmActive: false,
-    intrusionDetected: false,
-    auditTrailEnabled: true,
-    remoteLockout: false,
-    killSignalReady: true,
-    lastAlarmTime: null,
-  },
-  camera: {
-    online: false,
-    latestImageUrl: null,
-    lastCaptureTime: null,
-    triggerSource: null,
-  },
+
   eventLog: [
     {
       id: "evt-001",
@@ -148,4 +135,3 @@ export const defaultSystemTelemetry: SystemTelemetry = {
     },
   ],
 }
- 
