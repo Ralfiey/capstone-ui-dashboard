@@ -1,8 +1,8 @@
 import { SystemTelemetry } from "./types"
 export const defaultSystemTelemetry: SystemTelemetry = {
   ap: {
-    id: "AP-01",
-    name: "Access Point",
+    id: "UI-01",
+    name: "User Interface",
     online: false,
     sessionState: "idle",
     controlLocked: true,
@@ -140,7 +140,7 @@ export const defaultSystemTelemetry: SystemTelemetry = {
     {
       id: "evt-001",
       time: "Not yet available",
-      source: "AP",
+      source: "User Interface",
       target: "System",
       action: "Dashboard initialized",
       result: "Success",
