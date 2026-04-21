@@ -88,7 +88,7 @@ export default function HomePage() {
   function saveDeviceIp() {
     localStorage.setItem("esp32_ip", esp32Ip)
     setSavedIp(esp32Ip)
-    addLog("AP", "CH Endpoint", "Save IP", `Saved ${esp32Ip}`)
+    addLog("UI", "CH Endpoint", "Save IP", `Saved ${esp32Ip}`)
   }
   async function fetchTelemetry() {
     if (!savedIp) return
@@ -246,12 +246,12 @@ export default function HomePage() {
           }
         })
       )
-      addLog("AP", `PD Channel ${channelNumber}`, `Set ${action}`, "Success")
+      addLog("UI", `PD Channel ${channelNumber}`, `Set ${action}`, "Success")
       fetchTelemetry()
     } catch (error) {
       console.log(`Failed to toggle channel ${channelNumber}`, error)
       setStatus("Offline")
-      addLog("AP", `PD Channel ${channelNumber}`, `Set ${action}`, "Failed")
+      addLog("UI", `PD Channel ${channelNumber}`, `Set ${action}`, "Failed")
     }
   }
   async function allOutputsOff() {
@@ -277,7 +277,7 @@ export default function HomePage() {
         lastResponse: now,
       }))
     )
-    addLog("AP", "All Channels", "Emergency Off", "Completed")
+    addLog("UI", "All Channels", "Emergency Off", "Completed")
     fetchTelemetry()
   }
   useEffect(() => {
@@ -316,13 +316,13 @@ export default function HomePage() {
             Remote Panel Testing Dashboard
           </h1>
           <p className="text-sm text-muted-foreground">
-            AP interface for Communication Hub and Panel Device control
+            User interface for Communication Hub and Panel Device control
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-5">
           <Card>
             <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground">AP Status</div>
+              <div className="text-sm text-muted-foreground">UI Status</div>
               <div className="mt-2 text-lg font-medium">{status}</div>
             </CardContent>
           </Card>
@@ -360,7 +360,7 @@ export default function HomePage() {
             <div className="flex-1 space-y-2">
               <div className="text-sm font-medium">CH Endpoint</div>
               <p className="text-sm text-muted-foreground">
-                Enter the current IP address used by the AP to reach the communication
+                Enter the current IP address used by the UI to reach the communication
                 hub.
               </p>
               <Input
@@ -389,7 +389,7 @@ export default function HomePage() {
               <div>
                 <h2 className="text-lg font-semibold">Communication Hub</h2>
                 <p className="text-sm text-muted-foreground">
-                  Wireless bridge between the AP and the panel device
+                  Wireless bridge between the UI and the panel device
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
