@@ -620,11 +620,14 @@ export default function HomePage() {
                       stroke="#475569"
                       padding={{ top: 20, bottom: 10 }}
                     />
-                    <Tooltip
-  formatter={(value: number | string | undefined) => [
-    `${Number(value ?? 0).toFixed(3)} V`,
-    "Voltage",
-  ]}
+                   <Tooltip
+  formatter={(value) => {
+    const numericValue = Array.isArray(value)
+      ? Number(value[0] ?? 0)
+      : Number(value ?? 0)
+
+    return [`${numericValue.toFixed(3)} V`, "Voltage"]
+  }}
   contentStyle={{
     backgroundColor: "#ffffff",
     border: "1px solid #cbd5e1",
